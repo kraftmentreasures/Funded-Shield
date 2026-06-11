@@ -1,0 +1,2 @@
+-- Reference schema documentation
+-- Run migrations via Alembic: alembic upgrade head

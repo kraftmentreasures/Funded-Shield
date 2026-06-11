@@ -1,0 +1,2 @@
+-- Dev seed data placeholder
+-- Add seed scripts here when business logic is implemented

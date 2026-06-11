@@ -1,0 +1,70 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: funded-shield-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: funded_shield
+      POSTGRES_PASSWORD: funded_shield
+      POSTGRES_DB: funded_shield
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U funded_shield -d funded_shield"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+    container_name: funded-shield-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://funded_shield:funded_shield@postgres:5432/funded_shield
+      JWT_SECRET_KEY: change-me-in-production-use-openssl-rand-hex-32
+      CORS_ORIGINS: '["http://localhost:3000"]'
+    volumes:
+      - ../../backend:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  migrate:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+    container_name: funded-shield-migrate
+    command: sh -c "cd /database && alembic -c alembic.ini upgrade head"
+    environment:
+      DATABASE_URL: postgresql://funded_shield:funded_shield@postgres:5432/funded_shield
+    volumes:
+      - ../../backend:/app
+      - ../../database:/database
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ../../frontend
+      dockerfile: Dockerfile
+    container_name: funded-shield-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    volumes:
+      - ../../frontend:/app
+      - /app/node_modules
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:
